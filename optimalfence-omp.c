@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/time.h>
+#include <omp.h>
 
 #include "ConvexHull.h"
 
@@ -318,13 +319,18 @@ bool CalcularCombinacionOptima(int PrimeraCombinacion, int UltimaCombinacion, Pt
 
   	printf("Evaluating combinations: \n");
 	CosteMejorCombinacion = Optimo->Coste;
+
+	#pragma omp parallel for private(Coste)
 	for (Combinacion=PrimeraCombinacion; Combinacion<UltimaCombinacion; Combinacion++)
 	{
 		Coste = EvaluarCombinacionListaArboles(Combinacion);
 		if ( Coste < CosteMejorCombinacion )
 		{
-			CosteMejorCombinacion = Coste;
-			MejorCombinacion = Combinacion;
+			#pragma omp critical
+			if ( Coste < CosteMejorCombinacion ) {
+				CosteMejorCombinacion = Coste;
+				MejorCombinacion = Combinacion;
+			}
 		}
 	}
 
