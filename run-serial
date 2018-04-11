@@ -1,0 +1,1 @@
+qsub -S /bin/bash -V -wd $HOME/ProjectHPC18-OptimalFence/results -N OptimalFenceOMP_$1_serial -b y $HOME/ProjectHPC18-OptimalFence/serial $HOME/ProjectHPC18-OptimalFence/testbed/$1.txt
