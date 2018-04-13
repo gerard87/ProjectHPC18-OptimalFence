@@ -1,0 +1,8 @@
+Input data:
+	Trees: 3.
+	Tree 1-> (3,0) Value:10, Long:2.
+	Tree 2-> (5,5) Value:20, Long:25.
+	Tree 3-> (7,-3) Value:30, Long:32.
+Evaluating combinations: 
+
+0.001867
