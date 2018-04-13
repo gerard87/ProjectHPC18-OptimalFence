@@ -1,1 +1,1 @@
-qsub -S /bin/bash -V -pe smp 4 -wd $HOME/ProjectHPC18-OptimalFence/results -N OptimalFenceOMP_$1_$2 -v OMP_NUM_THREADS=$2 -b y $HOME/ProjectHPC18-OptimalFence/omp $HOME/ProjectHPC18-OptimalFence/testbed/$1.txt
+qsub -S /bin/bash -V -pe smp 4 -wd $HOME/ProjectHPC18-OptimalFence/results/omp -N OptimalFenceOMP_$1_$2 -v OMP_NUM_THREADS=$2 -b y $HOME/ProjectHPC18-OptimalFence/omp $HOME/ProjectHPC18-OptimalFence/testbed/$1.txt
