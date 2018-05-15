@@ -4,11 +4,13 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/time.h>
+#include <mpi.h>
 
 #include "ConvexHull.h"
 
-#define DMaxArboles 	25
+#define DMaxArboles 	30
 #define DMaximoCoste 999999
+#define ROOT 0
 
 
   //////////////////////////
@@ -72,9 +74,9 @@ TBosque ArbolesEntrada;
   //////////////////////////
  // Funtion definition   //
 //////////////////////////
-bool LeerFicheroEntrada(char *PathFicIn);
+bool LeerFicheroEntrada(char *PathFicIn, int rank);
 bool GenerarFicheroSalida(TListaArboles optimo, char *PathFicOut);
-bool CalcularCercaOptima(PtrListaArboles Optimo);
+bool CalcularCercaOptima(PtrListaArboles Optimo, int size, int rank);
 void OrdenarArboles();
 bool CalcularCombinacionOptima(int PrimeraCombinacion, int UltimaCombinacion, PtrListaArboles Optimo);
 int EvaluarCombinacionListaArboles(int Combinacion);
@@ -86,19 +88,50 @@ float CalcularDistancia(int x1, int y1, int x2, int y2);
 int CalcularMaderaArbolesTalados(TListaArboles CombinacionArboles);
 int CalcularCosteCombinacion(TListaArboles CombinacionArboles);
 void MostrarArboles(TListaArboles CombinacionArboles);
-
+void reduce_operation_min_cost (TListaArboles *in, TListaArboles *inout, int *len, MPI_Datatype *dptr);
 
 
 int main(int argc, char *argv[])
 {
-	TListaArboles Optimo;
+	TListaArboles Optimo, BestOptimo;
 	char *posicion;
 	int namesrclen;
 	unsigned long len;
 	char dest[255],outfile[255];
 	double tpivot1=0,tpivot2=0; //time counting
 	struct timeval tim;
-	
+    int rank, size;
+	MPI_Status status;
+    
+    /* Initialize MPI and compute rank and size */
+	MPI_Init(&argc, &argv);
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
+    
+    /* Register personalized reduce operation */
+	MPI_Op min_cost;
+	MPI_Op_create((MPI_User_function*)reduce_operation_min_cost, 1, &min_cost);
+    
+    
+    /* Prepare to send data type of struct TListaArboles */
+    MPI_Datatype restype;
+	MPI_Aint intex, floatex;
+	MPI_Type_extent(MPI_INT, &intex);
+	MPI_Type_extent(MPI_FLOAT, &floatex);
+	int blocklengths[7] = {1, 1, 1, 1, 1, 1, DMaxArboles};
+	MPI_Datatype types[7] = {MPI_INT, MPI_FLOAT, MPI_FLOAT, MPI_FLOAT, MPI_FLOAT, MPI_FLOAT, MPI_INT};
+	MPI_Aint displacements[7];
+	displacements[0] = (MPI_Aint) 0;
+	displacements[1] = intex;
+	displacements[2] = intex + floatex;
+	displacements[3] = intex + floatex * 2;
+	displacements[4] = intex + floatex * 3;
+	displacements[5] = intex + floatex * 4;
+	displacements[6] = intex * 2 + floatex * 4;
+	MPI_Type_struct(7, blocklengths, displacements, types, &restype);
+	MPI_Type_commit(&restype);
+
+
 	if (argc<2 || argc>3)
 		printf("Error Argumentos");
 
@@ -106,52 +139,76 @@ int main(int argc, char *argv[])
     gettimeofday(&tim, NULL);
     tpivot1 = tim.tv_sec+(tim.tv_usec/1000000.0);
 
-	if (!LeerFicheroEntrada(argv[1]))
+	if (!LeerFicheroEntrada(argv[1], rank))
 	{
 		printf("Error opening input file\n");
 		exit(1);
 	}
 
-	if (!CalcularCercaOptima(&Optimo))
+	if (!CalcularCercaOptima(&Optimo, size, rank))
 	{
 		printf("Error computing the optimal solution\n");
 		exit(1);
 	}
 
-	if (argc==2)
-	{	
-		len=strlen(argv[1]);
-		posicion = strchr(argv[1], '.');
-		memset(dest, '\0', sizeof(dest));
-		namesrclen=posicion-argv[1];
-		strncpy(dest,argv[1],namesrclen);
-		sprintf(outfile,"%s.res", dest);
 
-		if (!GenerarFicheroSalida(Optimo, outfile))
-		{
-			printf("Error writing output file\n");
-			exit(1);
-		}
-	}
-	else
-	{
-		if (!GenerarFicheroSalida(Optimo, argv[2]))
-		{
-			printf("Error writing output file\n");
-			exit(1);
-		}
-	}
+    /* Reduce operation usign the optimal partial result of every process (restype), computing wich 
+       is the best optimal (min_cost personalized operation), and sending the result to root process */
+	MPI_Reduce(&Optimo, &BestOptimo, 1, restype, min_cost, ROOT, MPI_COMM_WORLD);
 	
-	gettimeofday(&tim, NULL);	
-    tpivot2 = (tim.tv_sec+(tim.tv_usec/1000000.0));
-    printf("\n%.6lf\n", tpivot2-tpivot1);
-	
+    /* Root process saves and show the results */
+    if (rank == ROOT) {
+        if (argc==2)
+        {	
+            len=strlen(argv[1]);
+            posicion = strchr(argv[1], '.');
+            memset(dest, '\0', sizeof(dest));
+            namesrclen=posicion-argv[1];
+            strncpy(dest,argv[1],namesrclen);
+            sprintf(outfile,"%s.res", dest);
+
+            if (!GenerarFicheroSalida(BestOptimo, outfile))
+            {
+                printf("Error writing output file\n");
+                exit(1);
+            }
+        }
+        else
+        {
+            if (!GenerarFicheroSalida(BestOptimo, argv[2]))
+            {
+                printf("Error writing output file\n");
+                exit(1);
+            }
+        }
+        
+        gettimeofday(&tim, NULL);	
+        tpivot2 = (tim.tv_sec+(tim.tv_usec/1000000.0));
+        printf("\n%.6lf\n", tpivot2-tpivot1);
+    }
+
+    
+    MPI_Finalize();
+    
 	exit(0);
 }
 
 
+/* Personalized reduce operation: Stores the optimal solution with the better cost.
+   If there are more than one solution (same cost) takes the solution with less number of cutted trees. */
+void reduce_operation_min_cost (TListaArboles *in, TListaArboles *inout, int *len, MPI_Datatype *dptr) {
 
-bool LeerFicheroEntrada(char *PathFicIn)
+	if((*in).Coste < (*inout).Coste ||
+		((*in).Coste == (*inout).Coste && (*in).NumArboles < (*inout).NumArboles)) {
+
+		*inout = *in;
+	}
+
+}
+
+
+
+bool LeerFicheroEntrada(char *PathFicIn, int rank)
 {
 	FILE *FicIn;
 	int a;
@@ -162,7 +219,7 @@ bool LeerFicheroEntrada(char *PathFicIn)
 		perror("Opening input file");
 		return false;
 	}
-	printf("Input data:\n");
+	if(rank == ROOT) printf("Input data:\n");
 
 	// Reading the number of trees in the input woods.
 	if (fscanf(FicIn, "%d", &(ArbolesEntrada.NumArboles))<1)
@@ -170,7 +227,7 @@ bool LeerFicheroEntrada(char *PathFicIn)
 		perror("Reading input woods");
 		return false;
 	}
-	printf("\tTrees: %d.\n",ArbolesEntrada.NumArboles);
+	if(rank == ROOT) printf("\tTrees: %d.\n",ArbolesEntrada.NumArboles);
 
 	// Reading tree atributes.
 	for(a=0;a<ArbolesEntrada.NumArboles;a++)
@@ -182,7 +239,7 @@ bool LeerFicheroEntrada(char *PathFicIn)
 			perror("Reading tree info");
 			return false;
 		}
-		printf("\tTree %d-> (%d,%d) Value:%d, Long:%d.\n",a+1,ArbolesEntrada.Arboles[a].Coord.x, ArbolesEntrada.Arboles[a].Coord.y, ArbolesEntrada.Arboles[a].Valor, ArbolesEntrada.Arboles[a].Longitud);
+		if(rank == ROOT) printf("\tTree %d-> (%d,%d) Value:%d, Long:%d.\n",a+1,ArbolesEntrada.Arboles[a].Coord.x, ArbolesEntrada.Arboles[a].Coord.y, ArbolesEntrada.Arboles[a].Valor, ArbolesEntrada.Arboles[a].Longitud);
 	}
 
 	return true;
@@ -245,12 +302,18 @@ bool GenerarFicheroSalida(TListaArboles Optimo, char *PathFicOut)
 
 
 
-bool CalcularCercaOptima(PtrListaArboles Optimo)
+bool CalcularCercaOptima(PtrListaArboles Optimo, int size, int rank)
 {
 	int MaxCombinaciones;
+    int istart, iend;
 
 	/* Computing total combinations */
 	MaxCombinaciones = (int) pow(2.0,ArbolesEntrada.NumArboles);
+    
+    /* Divide the combinations to the processes equitably */
+    istart = rank * MaxCombinaciones / size;
+    iend = (rank+1) * MaxCombinaciones / size;
+    if(rank == size-1) iend = MaxCombinaciones;
 
 	// Sort trees in increasing order by x,y
 	OrdenarArboles();
@@ -258,7 +321,7 @@ bool CalcularCercaOptima(PtrListaArboles Optimo)
 	/* Computing optimal */
 	Optimo->NumArboles = 0;
 	Optimo->Coste = DMaximoCoste;
-	CalcularCombinacionOptima(1, MaxCombinaciones, Optimo);
+	CalcularCombinacionOptima(istart+1, iend, Optimo);
 
 	return true;
 }
@@ -316,7 +379,6 @@ bool CalcularCombinacionOptima(int PrimeraCombinacion, int UltimaCombinacion, Pt
 	int NumArboles, PuntosCerca;
 	float MaderaArbolesTalados;
 
-  	printf("Evaluating combinations: \n");
 	CosteMejorCombinacion = Optimo->Coste;
 	for (Combinacion=PrimeraCombinacion; Combinacion<UltimaCombinacion; Combinacion++)
 	{
