@@ -1,4 +1,4 @@
-.PHONY: serial omp all clean
+.PHONY: serial omp mpi hybrid all clean
 
 serial:
 	gcc optimalfence-serial.c -lm -o serial
@@ -9,7 +9,11 @@ omp:
 mpi:
 	mpicc optimalfence-mpi.c -lm -o mpi
 
-all: serial omp mpi
+hybrid:
+	mpicc optimalfence-hybrid.c -lm  -fopenmp -o hybrid
+
+
+all: serial omp mpi hybrid
 
 
 test_serial:
@@ -89,4 +93,4 @@ test_mpi:
 	./run-mpi 27arboles 32
 
 clean:
-	rm serial omp mpi mpi_script.sh testbed/*.res results/serial/* results/omp/* results/mpi/* 
+	rm serial omp mpi hybrid mpi_script.sh testbed/*.res results/serial/* results/omp/* results/mpi/* 
