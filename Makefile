@@ -93,4 +93,4 @@ test_mpi:
 	./run-mpi 27arboles 32
 
 clean:
-	rm serial omp mpi hybrid mpi_script.sh testbed/*.res results/serial/* results/omp/* results/mpi/* 
+	rm serial omp mpi hybrid mpi_script.sh hybrid_script.sh testbed/*.res results/serial/* results/omp/* results/mpi/* results/hybrid/*
