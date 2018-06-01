@@ -12,8 +12,11 @@
 ## Parallel programming environment (mpich-smp) to instantiate and number of computing slots.
 #$ -pe mpich-smp $THREADS
 
+## Passes an enviroment variable to the job
+#$ -v OMP_NUM_THREADS=$OMP_THREADS
+
 ## The  name  of  the  job.
-#$ -N OptimalFenceHybrid_$NAME_$THREADS
+#$ -N OptimalFenceHybrid_$NAME_$THREADS_$OMP_THREADS
 
 ## The folders to save the standard and error outputs.
 #$ -o $HOME/ProjectHPC18-OptimalFence/results/hybrid

@@ -1,3 +1,3 @@
 #!/bin/bash
-sed -e 's/$NAME/'$1'/g' -e 's/$THREADS/'$2'/g' hybrid_script_generic.sh > hybrid_script.sh
+sed -e 's/$NAME/'$1'/g' -e 's/$THREADS/'$(($2 * 4))'/g' -e 's/$OMP_THREADS/'$3'/g' hybrid_script_generic.sh > hybrid_script.sh
 qsub ./hybrid_script.sh

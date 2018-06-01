@@ -92,5 +92,57 @@ test_mpi:
 	./run-mpi 27arboles 16
 	./run-mpi 27arboles 32
 
+test_hybrid:
+	./run-hybrid test_trees3 2 2
+	./run-hybrid test_trees3 4 2
+	./run-hybrid test_trees3 8 2
+
+	./run-hybrid test_trees3 2 4
+	./run-hybrid test_trees3 4 4
+	./run-hybrid test_trees3 8 4
+
+	./run-hybrid test_trees6 2 2
+	./run-hybrid test_trees6 4 2
+	./run-hybrid test_trees6 8 2
+
+	./run-hybrid test_trees6 2 4
+	./run-hybrid test_trees6 4 4
+	./run-hybrid test_trees6 8 4
+
+
+	./run-hybrid 15arboles 2 2
+	./run-hybrid 15arboles 4 2
+	./run-hybrid 15arboles 8 2
+
+	./run-hybrid 15arboles 2 4
+	./run-hybrid 15arboles 4 4
+	./run-hybrid 15arboles 8 4
+
+
+	./run-hybrid 20arboles 2 2
+	./run-hybrid 20arboles 4 2
+	./run-hybrid 20arboles 8 2
+	
+	./run-hybrid 20arboles 2 4
+	./run-hybrid 20arboles 4 4
+	./run-hybrid 20arboles 8 4
+
+	./run-hybrid 25arboles 2 2
+	./run-hybrid 25arboles 4 2
+	./run-hybrid 25arboles 8 2
+
+	./run-hybrid 25arboles 2 4
+	./run-hybrid 25arboles 4 4
+	./run-hybrid 25arboles 8 4
+
+	./run-hybrid 27arboles 2 2
+	./run-hybrid 27arboles 4 2
+	./run-hybrid 27arboles 8 2
+
+	./run-hybrid 27arboles 2 4
+	./run-hybrid 27arboles 4 4
+	./run-hybrid 27arboles 8 4
+	
+
 clean:
 	rm serial omp mpi hybrid mpi_script.sh hybrid_script.sh testbed/*.res results/serial/* results/omp/* results/mpi/* results/hybrid/*
